@@ -1,3 +1,8 @@
+from __future__ import print_function
+from builtins import input
+from builtins import str
+from builtins import range
+
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist as AA
 import numpy as np
