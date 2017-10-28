@@ -11,6 +11,11 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist as AA
 from scipy.optimize import curve_fit
 import copy
+from builtins import input
+from builtins import str
+from builtins import range
+import csv
+import pdb
 #
 # Set error flags
 #
@@ -22,20 +27,18 @@ different_k_flag = "false" # Not yet implemented
 print()
 print("Data will be written to a file having the same name as the data file, ")
 print("but with _Analysis.txt at then end.")
-name = raw_input("Enter the filename of the data file (it should end in .txt): ")
-data_file = open(name, 'r')
-data = data_file.readline()
-newdata = []
-newdata = data.split()
-size = len(newdata)
-for i in range(size):
-        newdata[i] = float(newdata[i])
-num_data = size/2
-timedata = np.zeros(num_data)
-absdata = np.zeros(num_data)            
-for i in range(num_data):
-        timedata[i]=newdata[2*i]
-        absdata[i]=newdata[2*i+1]
+name = input("Enter the filename of the data file (it should end in .txt): ")
+timedata=[]
+absdata=[]
+with open(name,'rU') as data_file:
+    items=csv.reader(data_file,delimiter='\t')
+    for pair in items:
+        convert_pair=[float(value) for value in pair]
+        timedata.append(convert_pair[0])
+        absdata.append(convert_pair[1])
+timedata=np.array(timedata)
+absdata=np.array(absdata)
+num_data=len(timedata)
 # 
 # Write the data out to a file (for testing purposes). I will probably remove
 # this from the final version
@@ -48,7 +51,7 @@ with open(outputfilename, 'a') as outputfile:
 print()
 print("If the number of fits selected is 1, then the program will just fit")
 print("the original data set and won't do an extrapolation.")
-steps = raw_input("Enter the number of extrapolation fits (1-10): ")
+steps = input("Enter the number of extrapolation fits (1-10): ")
 steps = int(steps)
 if steps < 1:
     steps = 1 
@@ -60,7 +63,7 @@ with open(outputfilename, 'a') as outputfile:
 print()
 print("If the enzyme concentration is not known, entering 1 will mean that")
 print("the reported kcat/Km is actually k(obs).")
-enzconc = raw_input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
+enzconc = input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
 enzconc = float(enzconc)
 with open(outputfilename, 'a') as outputfile:
         outputfile.write('The enzyme concentration is: '+str(enzconc)+'\n')
@@ -116,6 +119,7 @@ for loopcount in range(steps):
         timetwo = []
         abstwo = []
         initfitpts = int(current_num_data*0.05)
+        #pdb.set_trace()
         for i in range(initfitpts):
            timetwo.append(time[i])
            abstwo.append(abs[i])
@@ -315,7 +319,7 @@ if loopcount > 1:
         final_abs_flag = "true"
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('WARNING: the final absorbance calculated differs from the final absorbance observed'+'\n')
-    nothing = raw_input("Just pausing so you can see the ratio, push return to continue")
+    nothing = input("Just pausing so you can see the ratio, push return to continue")
     if final_abs_flag == "true":
         extrap_plot = 2
     else:
