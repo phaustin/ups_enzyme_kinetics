@@ -180,7 +180,79 @@ def make_plots(dt):
         plt.show()  # May want to disable this.....
         plt.close(plfilenm)
         return plfilenm
+    
+def final_plot(dt):
+    fig = plt.figure()
+    ax = AA.Subplot(fig, 1, 1, 1)
+    fig.add_subplot(ax)
+    #
+    if dt.kval == 1:
+        plot_title = dt.name[:-4] + " -- Extrapolation plot, based on last 5% of data = final absorbance"
+    else:
+        plot_title = dt.name[:-4] + " -- Extrapolation plot, based on fit final absorbance"
+    x_axislabel = "Relative [Substrate]"
+    y_axislabel = "Km/kcat (s*mM)"
+    #
+    plt.plot(dt.x, dt.y, 'ko')  # Putting the data points on the plot
+    plt.title(plot_title)
+    plt.xlabel(x_axislabel)
+    plt.ylabel(y_axislabel)
+    plt.axis([0, 1.1 * max(dt.x), 0.9 * min(dt.y), 1.1 * max(dt.y)])
+    ty = []
+    tx = []
+    tx.append(0.)
+    ty.append(dt.a)
+    tx.append(1.1 * max(dt.x))
+    ty.append(dt.a + 1.1 * max(dt.x) * dt.b)
+    plt.plot(
+        tx, ty, 'k', linewidth=1.5)  # Putting the line on the plot
+    #
+    # Include the Kinetic Data
+    #
+    show_data = "Slope = {:0.3e} +/- {:0.1e} /s/mM".format(dt.b, dt.sigb)
+    plt.text(
+        0.5,
+        0.92,
+        show_data,
+        ha='center',
+        va='center',
+        transform=ax.transAxes)
+    show_data = "y-intercept = Km/kcat = {:0.3e} +/- {:0.1e} s mM".format(
+        dt.a, dt.siga)
+    plt.text(
+        0.5,
+        0.88,
+        show_data,
+        ha='center',
+        va='center',
+        transform=ax.transAxes)
+    show_data = "1/intercept = kcat/Km = {:0.3e} +/- {:0.1e} /s/mM".format(
+        1.0 / dt.a, 1.0 / dt.a * dt.siga / dt.a)
+    plt.text(
+        0.5,
+        0.84,
+        show_data,
+        ha='center',
+        va='center',
+        transform=ax.transAxes)
+    show_data = "Slope/intercept = {:0.3e}".format(dt.b / dt.a)
+    plt.text(
+        0.5,
+        0.80,
+        show_data,
+        ha='center',
+        va='center',
+        transform=ax.transAxes)
+    #
+    # SAVE THE PLOT AS A PDF FILE
+    #
+    plfilenm = dt.name[:-4] + "_ExtrapPlot" + str(dt.kval) + ".pdf"
+    plt.savefig(plfilenm, format='pdf')
+    plt.show()
+    plt.close(plfilenm)
+    return plfilenm
 
+    
 def main():
     #
     # Set error flags
@@ -228,10 +300,12 @@ def main():
     stddev2 = np.zeros(steps)
     starting_abs = np.zeros(steps)
     #
-    keys=['abs','deltaAf','enzconc','init_abs','init_abs2',
+    loop_keys=['abs','deltaAf','enzconc','init_abs','init_abs2',
           'current_num_data','k','k2','kcat_Km','kcat_Km2',
           'loopcount','name','pcov','pcov1','substrate','time','vi']
-    plot_tuple= namedtuple('plot_tuple', sorted(keys))
+    loop_tuple= namedtuple('loop_tuple', sorted(loop_keys))
+    final_keys=['a','b','kval','name','siga','sigb','x','y']
+    final_tuple=namedtuple('final_tuple',sorted(final_keys))
     
     for loopcount in range(steps):
         #
@@ -406,9 +480,10 @@ def main():
                 'kcat/Km = ' + str(kcat_Km2[loopcount]) + ' +/- ' + str(
                     kcat_Km2[loopcount] * np.sqrt(pcov[2, 2]) / k) + '/s/M \n')
         keep_dict={}
-        for key_val in keys:
-            keep_dict[key_val]=locals()[key_val]
-        plot_data=plot_tuple(**keep_dict)
+        current_dict=locals()
+        for key_val in loop_keys:
+            keep_dict[key_val]=current_dict[key_val]
+        plot_data=loop_tuple(**keep_dict)
         plfilenm=make_plots(plot_data)
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('Plot saved as ' + plfilenm + '\n')
@@ -457,7 +532,7 @@ def main():
             extrap_plot = 2
         else:
             extrap_plot = 1
-        for k in range(extrap_plot):
+        for kval in range(extrap_plot):
             xvalues = []
             yvalues = []
             svalues = []
@@ -540,6 +615,14 @@ def main():
                 1.0 / a, 1.0 / a * siga / a))
             print("Slope/intercept = {:0.3e}".format(b / a))
             #
+            keep_dict={}
+            current_dict=locals()
+            for key_val in final_keys:
+                print(key_val)
+                keep_dict[key_val]=current_dict[key_val]
+            plot_data=final_tuple(**keep_dict)
+            filename=final_plot(plot_data)
+            print('creating {}'.format(filename))
             with open(outputfilename, 'a') as outputfile:
                 outputfile.write('\n')
                 if extrap_plot == 1:
@@ -558,77 +641,6 @@ def main():
                                      1.0 / a * siga / a) + ' /mM/s' + '\n')
                 outputfile.write('Slope/Intercept = ' + str(b / a) + '\n')
             
-    #
-    # PLOT DATA
-    #
-            fig = plt.figure()
-            ax = AA.Subplot(fig, 1, 1, 1)
-            fig.add_subplot(ax)
-            #
-            if k == 1:
-                plot_title = name[:-4] + " -- Extrapolation plot, based on last 5% of data = final absorbance"
-            else:
-                plot_title = name[:-4] + " -- Extrapolation plot, based on fit final absorbance"
-            x_axislabel = "Relative [Substrate]"
-            y_axislabel = "Km/kcat (s*mM)"
-            #
-            plt.plot(x, y, 'ko')  # Putting the data points on the plot
-            plt.title(plot_title)
-            plt.xlabel(x_axislabel)
-            plt.ylabel(y_axislabel)
-            plt.axis([0, 1.1 * max(x), 0.9 * min(y), 1.1 * max(y)])
-            ty = []
-            tx = []
-            tx.append(0.)
-            ty.append(a)
-            tx.append(1.1 * max(x))
-            ty.append(a + 1.1 * max(x) * b)
-            plt.plot(
-                tx, ty, 'k', linewidth=1.5)  # Putting the line on the plot
-            #
-            # Include the Kinetic Data
-            #
-            show_data = "Slope = {:0.3e} +/- {:0.1e} /s/mM".format(b, sigb)
-            plt.text(
-                0.5,
-                0.92,
-                show_data,
-                ha='center',
-                va='center',
-                transform=ax.transAxes)
-            show_data = "y-intercept = Km/kcat = {:0.3e} +/- {:0.1e} s mM".format(
-                a, siga)
-            plt.text(
-                0.5,
-                0.88,
-                show_data,
-                ha='center',
-                va='center',
-                transform=ax.transAxes)
-            show_data = "1/intercept = kcat/Km = {:0.3e} +/- {:0.1e} /s/mM".format(
-                1.0 / a, 1.0 / a * siga / a)
-            plt.text(
-                0.5,
-                0.84,
-                show_data,
-                ha='center',
-                va='center',
-                transform=ax.transAxes)
-            show_data = "Slope/intercept = {:0.3e}".format(b / a)
-            plt.text(
-                0.5,
-                0.80,
-                show_data,
-                ha='center',
-                va='center',
-                transform=ax.transAxes)
-            #
-            # SAVE THE PLOT AS A PDF FILE
-            #
-            plfilenm = name[:-4] + "_ExtrapPlot" + str(k) + ".pdf"
-            plt.savefig(plfilenm, format='pdf')
-            plt.show()
-            plt.close(plfilenm)
             #
             # If final absorbances didn't match reset [S] values to
             # what would be obtained using the calculated final aborbance
