@@ -1,80 +1,21 @@
 # -*- coding: utf-8 -*-
-#  John Hanson, 10/25/2017
-# Program "DepletionExtrapolation1"
-#
-# This program is designed to estimate kcat/Km from a single depletion kinetic run.
-# In the simplest mode, if you choose 1 cycle, it will fit the data, assuming 
-# first order behavior and output a plot of the original data with the fit
-# superimposed, along with the parameters associated with the fit. The program
-# asks for the enzyme concentration, in molar, in order to calculate the kcat/Km
-# from the k(obs). If you don't have the enzyme concentration, you can just enter
-# 1 and the kcat/Km will correspond to the k(obs).
-
-# But beware, the calculated kcat/Km is only accurate under conditions 
-# where [S] << Km (e.g. [S]/Km < 0.1). However, it is possible to determine the 
-# kcat/Km at various concentrations and then extrapolate the kcat/Km to [S] = 0.
-# See Crompton, I.E., and Waley, S.G. Biochem. J. "The determination of 
-# specificity contants in enzyme-catalyzed reactions" Biochem. J. 1986, 239,
-# 221-224. However, it should also be possible to extrapolate to [S] = 0, by
-# using a single run -- determining kcat/Km at different starting points along
-# the reaction progress curve corresponds to depletion experiments at different [S].
-# Thus, for example, you should be able to determine kcat/Km for the full run,
-# then for the last 90% of the run, then the last 80% etc., and in this way
-# get a series of kcat/Km at different [S] that can then be used to extrapolate 
-# to the true kcat/Km.
-#
-# The data should be in a tab delimited text file with the data in pairs of time 
-# (in seconds) followed by the absorbance (or any other variable that is proportional
-# to the amount of product. No other data (e.g., column headings) should be 
-# present. A convenient way to get the data in the appropriate form is to take
-# the data as two columns in an Excel file (most instrunments allow you to save
-# data in Excel format, and save as a tab delimited text file.
-#
-# The program uses two different equations to fit the reaction progress curve:
-#
-#      Abs = Abs(initial) + (1-exp(-k(obs)t))deltaAbs (This is actually Method 2)
-#
-# Where deltaAbs is the Abs(final)-Abs(initial)
-# This to me is the conceptually simplest approach
-# 
-# However, another mathematically equivalent description of a first order reaction
-# progress curve is:
-#
-#        Abs = Abs(0) + v(initial)*(1-exp(-k(obs)t))/k(obs) (This is Method 1)
-# 
-#  Where v(initial) = the initial rate
-#
-# Both of these approaches should in theory give the same value for k(obs). And
-# in my experience they do. But I have left them both in for completeness, and
-# also because the second formulation is easily modified to fit to first order
-# processes that don't have a final rate of zero (e.g., burst kinetics).
-# INSERT CITATION and EQUATION
-#
-# After k(obs) is determined, it is trivial to calculate an estimate of 
-# kcat/Km since k(obs)/[E] = kcat/Km. But just to reiterate, the reaction 
-# progress curve for an enzyme following simple Michaelis-Menten kinetics will
-# only be first order when [S] << Km. Thus if you do the experiment with [S]=Km,
-# you will see that the program does not provide a good fit. Nevertheless, as 
-# shown in the Crompton and Waley paper cited above, a plot of 1/k(obs) (or Km/kcat) 
-# versus [S] should give a reasonably linear relationship that can be used to 
-# extrapolate to [S] = 0.
-# 
-# This program does not ask for the [S] or Km, and in fact it is not necessary to
-# know these (nor the delta epsilon). The program plots kcat/Km versus relative [S], 
-# where the initial concentration of [S] is arbitrarily set at 1.
-# This expedient has the benefit of making the slope/intercept a reflection
-# of where [S] was relative to Km initially. 
 # 
 # 
 # BEGIN PROGRAM
 #
 # Get necessary packages
 #
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist as AA
 from scipy.optimize import curve_fit
 import copy
+from builtins import input
+from builtins import str
+from builtins import range
+import csv
+import pdb
 #
 # Set error flags
 #
@@ -83,23 +24,21 @@ different_k_flag = "false" # Not yet implemented
 #
 # INPUT DATA AND CONVERT TO NUMPY ARRAYS 'time' and 'abs'
 #
-print
-print "Data will be written to a file having the same name as the data file, "
-print "but with _Analysis.txt at then end."
-name = raw_input("Enter the filename of the data file (it should end in .txt): ")
-data_file = open(name, 'r')
-data = data_file.readline()
-newdata = []
-newdata = data.split()
-size = len(newdata)
-for i in range(size):
-	newdata[i] = float(newdata[i])
-num_data = size/2
-timedata = np.zeros(num_data)
-absdata = np.zeros(num_data)		
-for i in range(num_data):
-	timedata[i]=newdata[2*i]
-	absdata[i]=newdata[2*i+1]
+print()
+print("Data will be written to a file having the same name as the data file, ")
+print("but with _Analysis.txt at then end.")
+name = input("Enter the filename of the data file (it should end in .txt): ")
+timedata=[]
+absdata=[]
+with open(name,'rU') as data_file:
+    items=csv.reader(data_file,delimiter='\t')
+    for pair in items:
+        convert_pair=[float(value) for value in pair]
+        timedata.append(convert_pair[0])
+        absdata.append(convert_pair[1])
+timedata=np.array(timedata)
+absdata=np.array(absdata)
+num_data=len(timedata)
 # 
 # Write the data out to a file (for testing purposes). I will probably remove
 # this from the final version
@@ -109,10 +48,10 @@ with open(outputfilename, 'a') as outputfile:
         outputfile.write('Input File: '+name+'\n')
         outputfile.write('Output File: '+outputfilename+'\n')
 #
-print
-print "If the number of fits selected is 1, then the program will just fit"
-print "the original data set and won't do an extrapolation."
-steps = raw_input("Enter the number of extrapolation fits (1-10): ")
+print()
+print("If the number of fits selected is 1, then the program will just fit")
+print("the original data set and won't do an extrapolation.")
+steps = input("Enter the number of extrapolation fits (1-10): ")
 steps = int(steps)
 if steps < 1:
     steps = 1 
@@ -121,10 +60,10 @@ if steps > 10:
 with open(outputfilename, 'a') as outputfile:
         outputfile.write('The number of fits selected is: '+str(steps)+'\n')
 #
-print
-print "If the enzyme concentration is not known, entering 1 will mean that"
-print "the reported kcat/Km is actually k(obs)."
-enzconc = raw_input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
+print()
+print("If the enzyme concentration is not known, entering 1 will mean that")
+print("the reported kcat/Km is actually k(obs).")
+enzconc = input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
 enzconc = float(enzconc)
 with open(outputfilename, 'a') as outputfile:
         outputfile.write('The enzyme concentration is: '+str(enzconc)+'\n')
@@ -150,8 +89,8 @@ for loopcount in range(steps):
     while absdata[startpt_counter] < current_startabs:
         startpt_counter = startpt_counter + 1
     current_num_data = num_data-startpt_counter
-    print "startpt_counter = ", startpt_counter
-    print "current_num_data = ", current_num_data
+    print("startpt_counter = ", startpt_counter)
+    print("current_num_data = ", current_num_data)
     abs = np.zeros(current_num_data)
     time = np.zeros(current_num_data)
     for i in range(startpt_counter, num_data):
@@ -180,9 +119,10 @@ for loopcount in range(steps):
         timetwo = []
         abstwo = []
         initfitpts = int(current_num_data*0.05)
+        #pdb.set_trace()
         for i in range(initfitpts):
-	   timetwo.append(time[i])
-	   abstwo.append(abs[i])
+           timetwo.append(time[i])
+           abstwo.append(abs[i])
         initialfit = np.polyfit(timetwo, abstwo, 1) #Fitting to a line and getting the slope
         vi = initialfit[0]*1.2
 #   
@@ -224,19 +164,19 @@ for loopcount in range(steps):
             counter = counter + 1
             sum = sum + abs[i]
         deltaA_overall = sum/counter-abs[0]
-        print "deltaA_overall = ", deltaA_overall
+        print("deltaA_overall = ", deltaA_overall)
     substrate[loopcount] = 1-(abs[0]-absdata[0])/deltaA_overall
     starting_abs[loopcount] = abs[0]
     stddev[loopcount] = kcat_Km[loopcount]*np.sqrt(pcov[2,2])/k
-    print substrate[loopcount], kcat_Km[loopcount], stddev[loopcount]
+    print(substrate[loopcount], kcat_Km[loopcount], stddev[loopcount])
 
-    print
-    print '[Substrate] = ', substrate[loopcount]
-    print 'Initial Abs = ', init_abs, ' +/- ', np.sqrt(pcov[0,0])
-    print 'Initial Rate = ', vi, ' +/- ', np.sqrt(pcov[1,1])
-    print 'Rate constant = ', k, ' +/- ', np.sqrt(pcov[2,2])
-    print '[Enzyme] = ', enzconc
-    print 'kcat/Km = ', kcat_Km[loopcount], ' +/- ', kcat_Km[loopcount]*np.sqrt(pcov[2,2])/k
+    print()
+    print('[Substrate] = ', substrate[loopcount])
+    print('Initial Abs = ', init_abs, ' +/- ', np.sqrt(pcov[0,0]))
+    print('Initial Rate = ', vi, ' +/- ', np.sqrt(pcov[1,1]))
+    print('Rate constant = ', k, ' +/- ', np.sqrt(pcov[2,2]))
+    print('[Enzyme] = ', enzconc)
+    print('kcat/Km = ', kcat_Km[loopcount], ' +/- ', kcat_Km[loopcount]*np.sqrt(pcov[2,2])/k)
 #
     with open(outputfilename, 'a') as outputfile:
         outputfile.write('[Relative S] = '+str(substrate[loopcount])+'\n')
@@ -272,13 +212,13 @@ for loopcount in range(steps):
 #    
     stddev2[loopcount] = kcat_Km2[loopcount]*np.sqrt(pcov[2,2])/k2
 #
-    print substrate[loopcount], kcat_Km2[loopcount], stddev2[loopcount]
-    print
-    print 'Initial Abs = ', init_abs2, ' +/- ', np.sqrt(pcov[0,0])
-    print 'Delta Abs = ', deltaAf, ' +/- ', np.sqrt(pcov[1,1])
-    print 'Final Abs = ', init_abs2+deltaAf
-    print 'Rate constant = ', k2, ' +/- ', np.sqrt(pcov[2,2])
-    print 'kcat/Km = ', kcat_Km2[loopcount], ' +/- ', kcat_Km2[loopcount]*np.sqrt(pcov[2,2])/k2
+    print(substrate[loopcount], kcat_Km2[loopcount], stddev2[loopcount])
+    print()
+    print('Initial Abs = ', init_abs2, ' +/- ', np.sqrt(pcov[0,0]))
+    print('Delta Abs = ', deltaAf, ' +/- ', np.sqrt(pcov[1,1]))
+    print('Final Abs = ', init_abs2+deltaAf)
+    print('Rate constant = ', k2, ' +/- ', np.sqrt(pcov[2,2]))
+    print('kcat/Km = ', kcat_Km2[loopcount], ' +/- ', kcat_Km2[loopcount]*np.sqrt(pcov[2,2])/k2)
 #
     with open(outputfilename, 'a') as outputfile:
         outputfile.write('\n')
@@ -346,7 +286,7 @@ for loopcount in range(steps):
 #
     plfilenm = name[:-4] +"plot" + str(loopcount+1) + ".pdf"
     plt.savefig(plfilenm, format='pdf')
-    print "Saved as ", plfilenm
+    print("Saved as ", plfilenm)
     plt.show()  # May want to disable this.....
     plt.close(plfilenm)
     with open(outputfilename, 'a') as outputfile:
@@ -364,22 +304,22 @@ for loopcount in range(steps):
 #
 loopcount = loopcount+1
 if loopcount > 1:
-    print "Final abs observed = ", deltaA_overall+absdata[0], " Final abs calcd = ", init_abs2+deltaAf
-    print "Calcd final abs/observed final abs = ", (init_abs2+deltaAf)/(deltaA_overall+absdata[0])
+    print("Final abs observed = ", deltaA_overall+absdata[0], " Final abs calcd = ", init_abs2+deltaAf)
+    print("Calcd final abs/observed final abs = ", (init_abs2+deltaAf)/(deltaA_overall+absdata[0]))
     with open(outputfilename, 'a') as outputfile:
         outputfile.write('\n')
         outputfile.write('Calcd final abs/observed final abs = '+str((init_abs2+deltaAf)/(deltaA_overall+absdata[0]))+'\n')
     if (init_abs2+deltaAf)/(deltaA_overall+absdata[0]) > 1.001:
-        print "WARNING: the final absorbance calculated differs from the final absorbance observed"
+        print("WARNING: the final absorbance calculated differs from the final absorbance observed")
         final_abs_flag = "true"
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('WARNING: the final absorbance calculated differs from the final absorbance observed'+'\n')
     if (init_abs2+deltaAf)/(deltaA_overall+absdata[0]) < 0.999:
-        print "WARNING: the final absorbance calculated differs from the final absorbance observed"
+        print("WARNING: the final absorbance calculated differs from the final absorbance observed")
         final_abs_flag = "true"
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('WARNING: the final absorbance calculated differs from the final absorbance observed'+'\n')
-    nothing = raw_input("Just pausing so you can see the ratio, push return to continue")
+    nothing = input("Just pausing so you can see the ratio, push return to continue")
     if final_abs_flag == "true":
         extrap_plot = 2
     else:
@@ -392,9 +332,9 @@ if loopcount > 1:
             xvalues.append(substrate[i])
             yvalues.append(kcat_Km[i])
             svalues.append(stddev[i])
-            print xvalues[i], yvalues[i]
+            print(xvalues[i], yvalues[i])
         extrap_kcat_km = np.polyfit(xvalues, yvalues, 1)
-        print 'Extrapolated kcat/Km without weighting = ', extrap_kcat_km[1]
+        print('Extrapolated kcat/Km without weighting = ', extrap_kcat_km[1])
 #       
 #
 # Do a weighted linearfit of relative[S] vs 1/(kcat/Km) using modified linearfit
@@ -428,16 +368,16 @@ if loopcount > 1:
         ss = 0.
         for i in range(loopcount):
             x[i] = substrate[i]
-   	    y[i] = 1.0/(kcat_Km[i]/1000)
-   	    s[i] = stddev[i]/kcat_Km[i]*y[i]
-   	    if s[i] > 0:
-   	        w[i] = 1./s[i]**2
-   	    else:
-   	        w[i] = 1.
-   	    print "{:0.4e} {:0.4e} {:0.4e} {:0.4e}".format(x[i], y[i], s[i], w[i])
-   	    ss = ss+w[i]
-   	    sx = sx+x[i]*w[i]
-   	    sy = sy+y[i]*w[i]
+            y[i] = 1.0/(kcat_Km[i]/1000)
+            s[i] = stddev[i]/kcat_Km[i]*y[i]
+            if s[i] > 0:
+                w[i] = 1./s[i]**2
+            else:
+                w[i] = 1.
+            print("{:0.4e} {:0.4e} {:0.4e} {:0.4e}".format(x[i], y[i], s[i], w[i]))
+            ss = ss+w[i]
+            sx = sx+x[i]*w[i]
+            sy = sy+y[i]*w[i]
 #
         sxoss = sx/ss
 #
@@ -459,10 +399,10 @@ if loopcount > 1:
 # Convert kcat/Km to /s/mM from /s/M
 #
 #    print
-        print  "Slope = {:0.3e} +/- {:0.1e} /s/mM".format(b, sigb)
-        print  "Intercept = {:0.3e} +/- {:0.1e} s•mM".format(a, siga)
-        print  "1/Intercept = kcat/Km = {:0.3e} +/- {:0.1e} /s/mM".format(1.0/a, 1.0/a*siga/a)
-        print  "Slope/intercept = {:0.3e}".format(b/a)
+        print("Slope = {:0.3e} +/- {:0.1e} /s/mM".format(b, sigb))
+        print("Intercept = {:0.3e} +/- {:0.1e} s•mM".format(a, siga))
+        print("1/Intercept = kcat/Km = {:0.3e} +/- {:0.1e} /s/mM".format(1.0/a, 1.0/a*siga/a))
+        print("Slope/intercept = {:0.3e}".format(b/a))
 #
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('\n')
@@ -530,4 +470,4 @@ if loopcount > 1:
             for i in range(loopcount):
                 substrate[i] = 1-(starting_abs[i]-absdata[0])/(init_abs2+deltaAf)
 #         
-print "PROGRAM COMPLETE"
+print("PROGRAM COMPLETE")
