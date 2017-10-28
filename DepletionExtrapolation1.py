@@ -16,6 +16,7 @@ from builtins import str
 from builtins import range
 import csv
 import pdb
+from collections import namedtuple
 
 def initial_setup(config_file=None, interactive=True):
     #
@@ -41,6 +42,144 @@ def initial_setup(config_file=None, interactive=True):
     enzconc = input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
     enzconc = float(enzconc)
     return name, steps, enzconc
+
+def make_plots(dt):
+    #
+    # SET UP PLOTS OF DATA
+    #
+    # NOT EXACTLY SURE ABOUT THE NEXT 4 LINES, But putting data on plot doesn't work without ax defined.
+    #
+        f = plt.figure()
+        f.subplots_adjust(right=0.85)
+        ax = AA.Subplot(f, 1, 1, 1)
+        f.add_subplot(ax)
+        #
+        plot_title = dt.name[:-4] + str(
+            dt.loopcount + 1) + "  Relative [S] = " + str(dt.substrate[dt.loopcount])
+        x_axislabel = "Time (sec)"
+        y_axislabel = "Absorbance"
+        plt.title(plot_title)
+        plt.xlabel(x_axislabel)
+        plt.ylabel(y_axislabel)
+        plt.axis([
+            dt.time[0], dt.time[dt.current_num_data - 1],
+            min(dt.abs),
+            min(dt.abs) + 1.1 * (max(dt.abs) - min(dt.abs))
+        ])
+        plt.plot(dt.time, dt.abs, color='orange')  #The actual data for this fit
+        #
+        #  The calculated fits superimposed
+        #
+        pcalc = np.zeros(dt.current_num_data)
+        pcalc = dt.init_abs + (dt.vi) * (
+            1 - np.exp(-1. * dt.k * dt.time)) / dt.k  #Method 1 fit
+        plt.plot(dt.time, pcalc, 'k', linewidth=1.0)
+        pcalc = dt.init_abs2 + (
+            dt.deltaAf) * (1 - np.exp(-1. * dt.k2 * dt.time))  #Method 2 fit
+        plt.plot(dt.time, pcalc, 'b', linewidth=1.0)
+        #
+        # PRINT DATA ON THE PLOT from Fit Method 1
+        #
+        show_data = "Initial Abs = {:.3e} +/- {:.2e} AU".format(
+            dt.init_abs, np.sqrt(dt.pcov1[0, 0]))
+        plt.text(
+            0.6,
+            0.6,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "Initial Rate = {:.3e}  +/- {:.2e} AU/sec".format(
+            dt.vi, np.sqrt(dt.pcov1[1, 1]))
+        plt.text(
+            0.6,
+            0.56,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "Rate constant, k = {:.3e} +/- {:.2e} /sec".format(
+            dt.k, np.sqrt(dt.pcov1[2, 2]))
+        plt.text(
+            0.6,
+            0.52,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "[Enzyme] = {:.2e} M".format(dt.enzconc)
+        plt.text(
+            0.6,
+            0.48,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "kcat/Km = {:.3e} +/- {:.2e} /M/sec".format(
+            dt.kcat_Km[dt.loopcount], dt.kcat_Km[dt.loopcount] * np.sqrt(dt.pcov1[2, 2]) / dt.k)
+        plt.text(
+            0.6,
+            0.44,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        #
+        # PRINT DATA ON THE PLOT -- From Fit Method 2
+        #
+        show_data = "Initial Abs = {:.3e} +/- {:.2e} AU".format(
+            dt.init_abs2, np.sqrt(dt.pcov[0, 0]))
+        plt.text(
+            0.6,
+            0.36,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "DeltaAbs = {:.3e}  +/- {:.2e} AU".format(
+            dt.deltaAf, np.sqrt(dt.pcov[1, 1]))
+        plt.text(
+            0.6,
+            0.32,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "Final Abs = {:.3e} AU".format(dt.init_abs2 + dt.deltaAf)
+        plt.text(
+            0.6,
+            0.28,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "Rate constant, k = {:.3e} +/- {:.2e} /sec".format(
+            dt.k2, np.sqrt(dt.pcov[2, 2]))
+        plt.text(
+            0.6,
+            0.24,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        show_data = "kcat/Km = {:.3e} +/- {:.2e} /M/sec".format(
+            dt.kcat_Km2[dt.loopcount], dt.kcat_Km2[dt.loopcount] * np.sqrt(dt.pcov[2, 2]) / dt.k)
+        plt.text(
+            0.6,
+            0.20,
+            show_data,
+            ha='center',
+            va='center',
+            transform=ax.transAxes)
+        #
+        # SAVE THE PLOT AS A PDF FILE
+        #
+        plfilenm = dt.name[:-4] + "plot" + str(dt.loopcount + 1) + ".pdf"
+        plt.savefig(plfilenm, format='pdf')
+        print("Saved as ", plfilenm)
+        plt.show()  # May want to disable this.....
+        plt.close(plfilenm)
+        return plfilenm
 
 def main():
     #
@@ -89,6 +228,11 @@ def main():
     stddev2 = np.zeros(steps)
     starting_abs = np.zeros(steps)
     #
+    keys=['abs','deltaAf','enzconc','init_abs','init_abs2',
+          'current_num_data','k','k2','kcat_Km','kcat_Km2',
+          'loopcount','name','pcov','pcov1','substrate','time','vi']
+    plot_tuple= namedtuple('plot_tuple', sorted(keys))
+    
     for loopcount in range(steps):
         #
         # SET UP THE CURRENT TIME AND ABS DATA
@@ -261,141 +405,11 @@ def main():
             outputfile.write(
                 'kcat/Km = ' + str(kcat_Km2[loopcount]) + ' +/- ' + str(
                     kcat_Km2[loopcount] * np.sqrt(pcov[2, 2]) / k) + '/s/M \n')
-    #
-    # SET UP PLOTS OF DATA
-    #
-    # NOT EXACTLY SURE ABOUT THE NEXT 4 LINES, But putting data on plot doesn't work without ax defined.
-    #
-        f = plt.figure()
-        f.subplots_adjust(right=0.85)
-        ax = AA.Subplot(f, 1, 1, 1)
-        f.add_subplot(ax)
-        #
-        plot_title = name[:-4] + str(
-            loopcount + 1) + "  Relative [S] = " + str(substrate[loopcount])
-        x_axislabel = "Time (sec)"
-        y_axislabel = "Absorbance"
-        plt.title(plot_title)
-        plt.xlabel(x_axislabel)
-        plt.ylabel(y_axislabel)
-        plt.axis([
-            time[0], time[current_num_data - 1],
-            min(abs),
-            min(abs) + 1.1 * (max(abs) - min(abs))
-        ])
-        plt.plot(time, abs, color='orange')  #The actual data for this fit
-        #
-        #  The calculated fits superimposed
-        #
-        pcalc = np.zeros(current_num_data)
-        pcalc = init_abs + (vi) * (
-            1 - np.exp(-1. * k * time)) / k  #Method 1 fit
-        plt.plot(time, pcalc, 'k', linewidth=1.0)
-        pcalc = init_abs2 + (
-            deltaAf) * (1 - np.exp(-1. * k2 * time))  #Method 2 fit
-        plt.plot(time, pcalc, 'b', linewidth=1.0)
-        #
-        # PRINT DATA ON THE PLOT from Fit Method 1
-        #
-        show_data = "Initial Abs = {:.3e} +/- {:.2e} AU".format(
-            init_abs, np.sqrt(pcov1[0, 0]))
-        plt.text(
-            0.6,
-            0.6,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "Initial Rate = {:.3e}  +/- {:.2e} AU/sec".format(
-            vi, np.sqrt(pcov1[1, 1]))
-        plt.text(
-            0.6,
-            0.56,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "Rate constant, k = {:.3e} +/- {:.2e} /sec".format(
-            k, np.sqrt(pcov1[2, 2]))
-        plt.text(
-            0.6,
-            0.52,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "[Enzyme] = {:.2e} M".format(enzconc)
-        plt.text(
-            0.6,
-            0.48,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "kcat/Km = {:.3e} +/- {:.2e} /M/sec".format(
-            kcat_Km[loopcount], kcat_Km[loopcount] * np.sqrt(pcov1[2, 2]) / k)
-        plt.text(
-            0.6,
-            0.44,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        #
-        # PRINT DATA ON THE PLOT -- From Fit Method 2
-        #
-        show_data = "Initial Abs = {:.3e} +/- {:.2e} AU".format(
-            init_abs2, np.sqrt(pcov[0, 0]))
-        plt.text(
-            0.6,
-            0.36,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "DeltaAbs = {:.3e}  +/- {:.2e} AU".format(
-            deltaAf, np.sqrt(pcov[1, 1]))
-        plt.text(
-            0.6,
-            0.32,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "Final Abs = {:.3e} AU".format(init_abs2 + deltaAf)
-        plt.text(
-            0.6,
-            0.28,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "Rate constant, k = {:.3e} +/- {:.2e} /sec".format(
-            k2, np.sqrt(pcov[2, 2]))
-        plt.text(
-            0.6,
-            0.24,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        show_data = "kcat/Km = {:.3e} +/- {:.2e} /M/sec".format(
-            kcat_Km2[loopcount], kcat_Km2[loopcount] * np.sqrt(pcov[2, 2]) / k)
-        plt.text(
-            0.6,
-            0.20,
-            show_data,
-            ha='center',
-            va='center',
-            transform=ax.transAxes)
-        #
-        # SAVE THE PLOT AS A PDF FILE
-        #
-        plfilenm = name[:-4] + "plot" + str(loopcount + 1) + ".pdf"
-        plt.savefig(plfilenm, format='pdf')
-        print("Saved as ", plfilenm)
-        plt.show()  # May want to disable this.....
-        plt.close(plfilenm)
+        keep_dict={}
+        for key_val in keys:
+            keep_dict[key_val]=locals()[key_val]
+        plot_data=plot_tuple(**keep_dict)
+        plfilenm=make_plots(plot_data)
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('Plot saved as ' + plfilenm + '\n')
         with open(outputfilename, 'a') as outputfile:
@@ -543,6 +557,7 @@ def main():
                                  str(1.0 / a) + ' +/- ' + str(
                                      1.0 / a * siga / a) + ' /mM/s' + '\n')
                 outputfile.write('Slope/Intercept = ' + str(b / a) + '\n')
+            
     #
     # PLOT DATA
     #
