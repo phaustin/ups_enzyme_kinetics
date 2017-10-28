@@ -5,6 +5,7 @@
 #
 # Get necessary packages
 #
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist as AA
@@ -18,9 +19,9 @@ different_k_flag = "false" # Not yet implemented
 #
 # INPUT DATA AND CONVERT TO NUMPY ARRAYS 'time' and 'abs'
 #
-print
-print "Data will be written to a file having the same name as the data file, "
-print "but with _Analysis.txt at then end."
+print()
+print("Data will be written to a file having the same name as the data file, ")
+print("but with _Analysis.txt at then end.")
 name = raw_input("Enter the filename of the data file (it should end in .txt): ")
 data_file = open(name, 'r')
 data = data_file.readline()
@@ -44,9 +45,9 @@ with open(outputfilename, 'a') as outputfile:
         outputfile.write('Input File: '+name+'\n')
         outputfile.write('Output File: '+outputfilename+'\n')
 #
-print
-print "If the number of fits selected is 1, then the program will just fit"
-print "the original data set and won't do an extrapolation."
+print()
+print("If the number of fits selected is 1, then the program will just fit")
+print("the original data set and won't do an extrapolation.")
 steps = raw_input("Enter the number of extrapolation fits (1-10): ")
 steps = int(steps)
 if steps < 1:
@@ -56,9 +57,9 @@ if steps > 10:
 with open(outputfilename, 'a') as outputfile:
         outputfile.write('The number of fits selected is: '+str(steps)+'\n')
 #
-print
-print "If the enzyme concentration is not known, entering 1 will mean that"
-print "the reported kcat/Km is actually k(obs)."
+print()
+print("If the enzyme concentration is not known, entering 1 will mean that")
+print("the reported kcat/Km is actually k(obs).")
 enzconc = raw_input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
 enzconc = float(enzconc)
 with open(outputfilename, 'a') as outputfile:
@@ -85,8 +86,8 @@ for loopcount in range(steps):
     while absdata[startpt_counter] < current_startabs:
         startpt_counter = startpt_counter + 1
     current_num_data = num_data-startpt_counter
-    print "startpt_counter = ", startpt_counter
-    print "current_num_data = ", current_num_data
+    print("startpt_counter = ", startpt_counter)
+    print("current_num_data = ", current_num_data)
     abs = np.zeros(current_num_data)
     time = np.zeros(current_num_data)
     for i in range(startpt_counter, num_data):
@@ -159,19 +160,19 @@ for loopcount in range(steps):
             counter = counter + 1
             sum = sum + abs[i]
         deltaA_overall = sum/counter-abs[0]
-        print "deltaA_overall = ", deltaA_overall
+        print("deltaA_overall = ", deltaA_overall)
     substrate[loopcount] = 1-(abs[0]-absdata[0])/deltaA_overall
     starting_abs[loopcount] = abs[0]
     stddev[loopcount] = kcat_Km[loopcount]*np.sqrt(pcov[2,2])/k
-    print substrate[loopcount], kcat_Km[loopcount], stddev[loopcount]
+    print(substrate[loopcount], kcat_Km[loopcount], stddev[loopcount])
 
-    print
-    print '[Substrate] = ', substrate[loopcount]
-    print 'Initial Abs = ', init_abs, ' +/- ', np.sqrt(pcov[0,0])
-    print 'Initial Rate = ', vi, ' +/- ', np.sqrt(pcov[1,1])
-    print 'Rate constant = ', k, ' +/- ', np.sqrt(pcov[2,2])
-    print '[Enzyme] = ', enzconc
-    print 'kcat/Km = ', kcat_Km[loopcount], ' +/- ', kcat_Km[loopcount]*np.sqrt(pcov[2,2])/k
+    print()
+    print('[Substrate] = ', substrate[loopcount])
+    print('Initial Abs = ', init_abs, ' +/- ', np.sqrt(pcov[0,0]))
+    print('Initial Rate = ', vi, ' +/- ', np.sqrt(pcov[1,1]))
+    print('Rate constant = ', k, ' +/- ', np.sqrt(pcov[2,2]))
+    print('[Enzyme] = ', enzconc)
+    print('kcat/Km = ', kcat_Km[loopcount], ' +/- ', kcat_Km[loopcount]*np.sqrt(pcov[2,2])/k)
 #
     with open(outputfilename, 'a') as outputfile:
         outputfile.write('[Relative S] = '+str(substrate[loopcount])+'\n')
@@ -207,13 +208,13 @@ for loopcount in range(steps):
 #    
     stddev2[loopcount] = kcat_Km2[loopcount]*np.sqrt(pcov[2,2])/k2
 #
-    print substrate[loopcount], kcat_Km2[loopcount], stddev2[loopcount]
-    print
-    print 'Initial Abs = ', init_abs2, ' +/- ', np.sqrt(pcov[0,0])
-    print 'Delta Abs = ', deltaAf, ' +/- ', np.sqrt(pcov[1,1])
-    print 'Final Abs = ', init_abs2+deltaAf
-    print 'Rate constant = ', k2, ' +/- ', np.sqrt(pcov[2,2])
-    print 'kcat/Km = ', kcat_Km2[loopcount], ' +/- ', kcat_Km2[loopcount]*np.sqrt(pcov[2,2])/k2
+    print(substrate[loopcount], kcat_Km2[loopcount], stddev2[loopcount])
+    print()
+    print('Initial Abs = ', init_abs2, ' +/- ', np.sqrt(pcov[0,0]))
+    print('Delta Abs = ', deltaAf, ' +/- ', np.sqrt(pcov[1,1]))
+    print('Final Abs = ', init_abs2+deltaAf)
+    print('Rate constant = ', k2, ' +/- ', np.sqrt(pcov[2,2]))
+    print('kcat/Km = ', kcat_Km2[loopcount], ' +/- ', kcat_Km2[loopcount]*np.sqrt(pcov[2,2])/k2)
 #
     with open(outputfilename, 'a') as outputfile:
         outputfile.write('\n')
@@ -281,7 +282,7 @@ for loopcount in range(steps):
 #
     plfilenm = name[:-4] +"plot" + str(loopcount+1) + ".pdf"
     plt.savefig(plfilenm, format='pdf')
-    print "Saved as ", plfilenm
+    print("Saved as ", plfilenm)
     plt.show()  # May want to disable this.....
     plt.close(plfilenm)
     with open(outputfilename, 'a') as outputfile:
@@ -299,18 +300,18 @@ for loopcount in range(steps):
 #
 loopcount = loopcount+1
 if loopcount > 1:
-    print "Final abs observed = ", deltaA_overall+absdata[0], " Final abs calcd = ", init_abs2+deltaAf
-    print "Calcd final abs/observed final abs = ", (init_abs2+deltaAf)/(deltaA_overall+absdata[0])
+    print("Final abs observed = ", deltaA_overall+absdata[0], " Final abs calcd = ", init_abs2+deltaAf)
+    print("Calcd final abs/observed final abs = ", (init_abs2+deltaAf)/(deltaA_overall+absdata[0]))
     with open(outputfilename, 'a') as outputfile:
         outputfile.write('\n')
         outputfile.write('Calcd final abs/observed final abs = '+str((init_abs2+deltaAf)/(deltaA_overall+absdata[0]))+'\n')
     if (init_abs2+deltaAf)/(deltaA_overall+absdata[0]) > 1.001:
-        print "WARNING: the final absorbance calculated differs from the final absorbance observed"
+        print("WARNING: the final absorbance calculated differs from the final absorbance observed")
         final_abs_flag = "true"
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('WARNING: the final absorbance calculated differs from the final absorbance observed'+'\n')
     if (init_abs2+deltaAf)/(deltaA_overall+absdata[0]) < 0.999:
-        print "WARNING: the final absorbance calculated differs from the final absorbance observed"
+        print("WARNING: the final absorbance calculated differs from the final absorbance observed")
         final_abs_flag = "true"
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('WARNING: the final absorbance calculated differs from the final absorbance observed'+'\n')
@@ -327,9 +328,9 @@ if loopcount > 1:
             xvalues.append(substrate[i])
             yvalues.append(kcat_Km[i])
             svalues.append(stddev[i])
-            print xvalues[i], yvalues[i]
+            print(xvalues[i], yvalues[i])
         extrap_kcat_km = np.polyfit(xvalues, yvalues, 1)
-        print 'Extrapolated kcat/Km without weighting = ', extrap_kcat_km[1]
+        print('Extrapolated kcat/Km without weighting = ', extrap_kcat_km[1])
 #       
 #
 # Do a weighted linearfit of relative[S] vs 1/(kcat/Km) using modified linearfit
@@ -369,7 +370,7 @@ if loopcount > 1:
                 w[i] = 1./s[i]**2
             else:
                 w[i] = 1.
-            print "{:0.4e} {:0.4e} {:0.4e} {:0.4e}".format(x[i], y[i], s[i], w[i])
+            print("{:0.4e} {:0.4e} {:0.4e} {:0.4e}".format(x[i], y[i], s[i], w[i]))
             ss = ss+w[i]
             sx = sx+x[i]*w[i]
             sy = sy+y[i]*w[i]
@@ -394,10 +395,10 @@ if loopcount > 1:
 # Convert kcat/Km to /s/mM from /s/M
 #
 #    print
-        print  "Slope = {:0.3e} +/- {:0.1e} /s/mM".format(b, sigb)
-        print  "Intercept = {:0.3e} +/- {:0.1e} s•mM".format(a, siga)
-        print  "1/Intercept = kcat/Km = {:0.3e} +/- {:0.1e} /s/mM".format(1.0/a, 1.0/a*siga/a)
-        print  "Slope/intercept = {:0.3e}".format(b/a)
+        print("Slope = {:0.3e} +/- {:0.1e} /s/mM".format(b, sigb))
+        print("Intercept = {:0.3e} +/- {:0.1e} s•mM".format(a, siga))
+        print("1/Intercept = kcat/Km = {:0.3e} +/- {:0.1e} /s/mM".format(1.0/a, 1.0/a*siga/a))
+        print("Slope/intercept = {:0.3e}".format(b/a))
 #
         with open(outputfilename, 'a') as outputfile:
             outputfile.write('\n')
@@ -465,4 +466,4 @@ if loopcount > 1:
             for i in range(loopcount):
                 substrate[i] = 1-(starting_abs[i]-absdata[0])/(init_abs2+deltaAf)
 #         
-print "PROGRAM COMPLETE"
+print("PROGRAM COMPLETE")
