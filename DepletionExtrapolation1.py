@@ -390,7 +390,7 @@ def main():
             print('creating {}'.format(filename))
             with open(outputfilename, 'a') as outputfile:
                 outputfile.write('\n')
-                if extrap_plot == 1:
+                if kval == 0:
                     outputfile.write(
                         'Extrapolating based on last 5% of data = Final Absorbance'
                         + '\n')
@@ -412,8 +412,7 @@ def main():
             #
             if final_abs_flag == "true":
                 for i in range(loopcount):
-                    substrate[i] = 1 - (starting_abs[i] - absdata[0]) / (
-                        init_abs2 + deltaAf)
+                    substrate[i] = 1 - (starting_abs[i] - absdata[0]) / (init_abs2 + deltaAf - absdata[0])
     #
     print("PROGRAM COMPLETE")
 
