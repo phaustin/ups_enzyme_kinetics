@@ -15,7 +15,7 @@ def initial_setup(config_file=None, interactive=True):
     print(
         "Data will be written to a file having the same name as the data file, "
     )
-    print("but with _Analysis.txt at then end.")
+    print("but with _Analysis.txt at the end.")
     name = input(
         "Enter the filename of the data file (it should end in .txt): ")
     print()
@@ -175,7 +175,7 @@ def final_plot(dt):
     ax = AA.Subplot(fig, 1, 1, 1)
     fig.add_subplot(ax)
     #
-    if dt.kval == 1:
+    if dt.kval == 0:
         plot_title = dt.name[:-4] + " -- Extrapolation plot, based on last 5% of data = final absorbance"
     else:
         plot_title = dt.name[:-4] + " -- Extrapolation plot, based on fit final absorbance"
