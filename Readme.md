@@ -64,3 +64,7 @@ where the initial concentration of [S] is arbitrarily set at 1.
 This expedient has the benefit of making the slope/intercept a reflection
 of where [S] was relative to Km initially. 
 
+
+* Gitter chatroom for ups_enzyme_kinetics development:
+
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/phaustin/ups_enzyme_kinetics?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
