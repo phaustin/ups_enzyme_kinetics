@@ -1,10 +1,6 @@
-# -*- coding: utf-8 -*-
-#
-#
-# BEGIN PROGRAM
-#
-# Get necessary packages
-#
+"""
+  add docstring here
+"""
 from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,12 +14,59 @@ import csv
 import pdb
 from collections import namedtuple
 from input_output import initial_setup,make_plots,final_plot
-    
-def main():
-    #
-    # Set error flags
-    #
-    name, steps, enzconc = initial_setup()    
+import json
+import argparse
+import textwrap
+import sys
+from pathlib import Path
+
+
+def make_parser():
+    linebreaks = argparse.RawTextHelpFormatter
+    descrip = textwrap.dedent(globals()['__doc__'])
+    parser = argparse.ArgumentParser(formatter_class=linebreaks,
+                                     description=descrip)
+    parser.add_argument('-c','--config_file',type=str,help='optional name of json config file')
+    parser.add_argument('-r','--run_default',action='store_true',
+                           dest='default_run',help='run the default case and create a config file')
+    return parser
+
+
+def main(the_args=None):
+    """
+    args: optional -- if missing then args will be taken from command line
+    """
+    import os
+    print(__file__)
+    print(Path(__file__).parent)
+    parser = make_parser()
+    args = parser.parse_args(the_args)
+    if args.config_file:
+        # 
+        # config_file argument found, run in batch mode
+        #
+        print('batch run with config_file={}'.format(args.config_file))
+        do_default=False
+        interactive=False
+        config_file=args.config_file
+    else:
+        try:
+            #
+            #  if no config_file but default_run requested, will create default config
+            #
+            do_default=args.default_run
+            interactive=False
+            config_file='default_config.json'
+            print(('batch run requested, will create default '
+                   'config file '.format(config_file)))
+        except AttributeError:
+            #
+            # no default request, no config file, run interactive
+            #
+            config_file=None
+            do_default=False
+            interactive=True
+    name, steps, enzconc = initial_setup(config_file,do_default)
     final_abs_flag = "false"
     different_k_flag = "false"  # Not yet implemented
     timedata = []
@@ -292,8 +335,9 @@ def main():
                 outputfile.write(
                     'WARNING: the final absorbance calculated differs from the final absorbance observed'
                     + '\n')
-        nothing = input(
-            "Just pausing so you can see the ratio, push return to continue")
+        if interactive:
+            nothing = input(
+                "Just pausing so you can see the ratio, push return to continue")
         if final_abs_flag == "true":
             extrap_plot = 2
         else:

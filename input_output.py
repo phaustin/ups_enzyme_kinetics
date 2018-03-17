@@ -6,30 +6,51 @@ from builtins import range
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist as AA
 import numpy as np
+import json
 
-def initial_setup(config_file=None, interactive=True):
-    #
-    # INPUT DATA AND CONVERT TO NUMPY ARRAYS 'time' and 'abs'
-    #
-    print()
-    print(
-        "Data will be written to a file having the same name as the data file, "
-    )
-    print("but with _Analysis.txt at the end.")
-    name = input(
-        "Enter the filename of the data file (it should end in .txt): ")
-    print()
-    print(
-        "If the number of fits selected is 1, then the program will just fit")
-    print("the original data set and won't do an extrapolation.")
-    steps = input("Enter the number of extrapolation fits (1-10): ")
-    steps = int(steps)
-    print()
-    print(
-        "If the enzyme concentration is not known, entering 1 will mean that")
-    print("the reported kcat/Km is actually k(obs).")
-    enzconc = input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
-    enzconc = float(enzconc)
+def make_default_config(config_file):
+    default={"name": "JEHVII97dep2G.txt",
+             "steps": 10,
+             "enzconc": 7.2e-10}
+    with open(config_file,'w') as f:
+        json.dump(default,f)
+    return default
+
+
+def initial_setup(config_file,do_default):
+    if do_default:
+        make_default_config(config_file)
+    if config_file is not None:
+        with open(config_file,'r') as f:
+                input_dict=json.load(f)
+        name, steps, enzconc = (input_dict['name'],
+                                input_dict['steps'],
+                                input_dict['enzconc'])
+    else:
+        #
+        # no config file and do_default=False, start interactive
+        #
+        text="""
+              Data will be written to a file having the same name as the data file,
+              but with _Analysis.txt at the end.
+        """
+        print(text)
+        name = input(
+            "Enter the filename of the data file (it should end in .txt): ")
+        text="""
+              If the number of fits selected is 1, then the program will just fit
+              the original data set and won't do an extrapolation.
+        """
+        print(text)
+        steps = input("Enter the number of extrapolation fits (1-10): ")
+        steps = int(steps)
+        text="""
+              If the enzyme concentration is not known, entering 1 will mean that
+              the reported kcat/Km is actually k(obs).
+        """
+        print(text)
+        enzconc = input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
+        enzconc = float(enzconc)
     return name, steps, enzconc
 
 def make_plots(dt):
