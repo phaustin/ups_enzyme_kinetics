@@ -1,0 +1,9 @@
+name: ups_test
+channels:
+  - defaults
+dependencies:
+  - matplotlib
+  - scipy
+  - pip:
+    - importlib-resources==0.3
+prefix: /Users/phil/ma36/envs/ups_test

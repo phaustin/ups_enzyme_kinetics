@@ -3,24 +3,50 @@ from builtins import input
 from builtins import str
 from builtins import range
 
+import matplotlib
+matplotlib.use('PDF')
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist as AA
 import numpy as np
 import json
+import importlib_resources as ir
+from . import config_files
+from . import output_dir
+from . import plot_dir
+from pathlib import Path
+from textwrap import dedent
+
+def get_config_dir():
+    the_path=Path(config_files.__path__[0])
+    return the_path
+
+def get_output_dir():
+    the_path=Path(output_dir.__path__[0])
+    return the_path
+
+def get_plot_dir():
+    the_path=Path(plot_dir.__path__[0])
+    return the_path
 
 def make_default_config(config_file):
     default={"name": "JEHVII97dep2G.txt",
              "steps": 10,
              "enzconc": 7.2e-10}
-    with open(config_file,'w') as f:
+    the_path = get_config_dir()
+    the_config = the_path / Path(config_file)
+    with open(the_config,'w') as f:
         json.dump(default,f)
-    return default
+    return the_config
 
 
 def initial_setup(config_file,do_default):
     if do_default:
-        make_default_config(config_file)
+        config_file=make_default_config(config_file)
     if config_file is not None:
+        config_file = Path(config_file)
+        if not config_file.is_absolute():
+            config_file = get_config_dir() / config_file
+        print(f'opening config_file: {str(config_file)}')
         with open(config_file,'r') as f:
                 input_dict=json.load(f)
         name, steps, enzconc = (input_dict['name'],
@@ -30,25 +56,31 @@ def initial_setup(config_file,do_default):
         #
         # no config file and do_default=False, start interactive
         #
-        text="""
+        text=f"""
               Data will be written to a file having the same name as the data file,
-              but with _Analysis.txt at the end.
+              but with _Analysis.txt at the end, in the folder
+              {str(get_output_dir())} 
+              plots will be written to {str(get_plot_dir())}
         """
-        print(text)
-        name = input(
-            "Enter the filename of the data file (it should end in .txt): ")
+        print(dedent(text))
+        text=f"""
+              Enter the filename of the data file (it should end in .txt) and
+              be located in folder {str(get_config_dir())}
+              (default run file is JEHVII97dep2G.txt)
+              filename:"""
+        name = input(dedent(text))
         text="""
               If the number of fits selected is 1, then the program will just fit
               the original data set and won't do an extrapolation.
         """
-        print(text)
+        print(dedent(text))
         steps = input("Enter the number of extrapolation fits (1-10): ")
         steps = int(steps)
         text="""
               If the enzyme concentration is not known, entering 1 will mean that
               the reported kcat/Km is actually k(obs).
         """
-        print(text)
+        print(dedent(text))
         enzconc = input("Enter the enzyme concentration in M (e.g 3.2E-9): ")
         enzconc = float(enzconc)
     return name, steps, enzconc
@@ -184,12 +216,13 @@ def make_plots(dt):
         #
         # SAVE THE PLOT AS A PDF FILE
         #
-        plfilenm = dt.name[:-4] + "plot" + str(dt.loopcount + 1) + ".pdf"
-        plt.savefig(plfilenm, format='pdf')
-        print("Saved as ", plfilenm)
-        plt.show()  # May want to disable this.....
-        plt.close(plfilenm)
-        return plfilenm
+        plfilenm = f'{dt.input_file.stem}_plot_{dt.loopcount + 1}.pdf'
+        fullname = get_plot_dir() / Path(plfilenm)
+        fullname_txt = str(fullname)
+        plt.savefig(fullname_txt, format='pdf')
+        print("Saved as ", fullname_txt)
+        plt.close(fullname_txt)
+        return fullname_txt
     
 def final_plot(dt):
     fig = plt.figure()
@@ -256,8 +289,9 @@ def final_plot(dt):
     #
     # SAVE THE PLOT AS A PDF FILE
     #
-    plfilenm = dt.name[:-4] + "_ExtrapPlot" + str(dt.kval) + ".pdf"
-    plt.savefig(plfilenm, format='pdf')
-    plt.show()
-    plt.close(plfilenm)
-    return plfilenm
+    plfilenm = f'{dt.input_file.stem}_ExtrapPlot{dt.kval}.pdf'
+    fullname = get_plot_dir() / Path(plfilenm)
+    fullname_txt = str(fullname)
+    plt.savefig(fullname_txt, format='pdf')
+    plt.close(fullname_txt)
+    return fullname_txt

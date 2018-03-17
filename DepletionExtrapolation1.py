@@ -1,5 +1,15 @@
 """
-  add docstring here
+  to run the script in iteractive mode:
+
+     python DepletionExtrapoloation1.py
+
+  to run the script in batch mode with a default config_file
+
+     python DepletionExtrapoloation1.py  -r
+
+  to run the the script in batch mode with a specified config_file
+
+     python DepletionExtrapoloation1.py  -c path_to_config_file
 """
 from __future__ import print_function
 import numpy as np
@@ -13,13 +23,14 @@ from builtins import range
 import csv
 import pdb
 from collections import namedtuple
-from input_output import initial_setup,make_plots,final_plot
 import json
 import argparse
 import textwrap
 import sys
 from pathlib import Path
-
+from textwrap import dedent
+from ups_enzyme.input_output import (initial_setup,make_plots,final_plot,
+                                     get_config_dir, get_output_dir, get_plot_dir)
 
 def make_parser():
     linebreaks = argparse.RawTextHelpFormatter
@@ -34,11 +45,8 @@ def make_parser():
 
 def main(the_args=None):
     """
-    args: optional -- if missing then args will be taken from command line
+    the_args: optional -- if missing then args will be taken from command line
     """
-    import os
-    print(__file__)
-    print(Path(__file__).parent)
     parser = make_parser()
     args = parser.parse_args(the_args)
     if args.config_file:
@@ -50,28 +58,40 @@ def main(the_args=None):
         interactive=False
         config_file=args.config_file
     else:
-        try:
-            #
-            #  if no config_file but default_run requested, will create default config
-            #
-            do_default=args.default_run
+        #
+        #  if no config_file but default_run requested, will create default config
+        #
+        if args.default_run:
             interactive=False
+            do_default = True
             config_file='default_config.json'
             print(('batch run requested, will create default '
                    'config file '.format(config_file)))
-        except AttributeError:
+        else:
             #
             # no default request, no config file, run interactive
             #
+            text = f"""
+                starting interactive run
+                to see the help message, do
+                python {sys.argv[0]} -h
+            """
+            print(dedent(text))
             config_file=None
             do_default=False
             interactive=True
+    #pdb.set_trace()
     name, steps, enzconc = initial_setup(config_file,do_default)
+    input_file = get_config_dir() / Path(name)
+    if not input_file.is_file():
+        error = (f"cannot find input file, looking for\n"
+                 f"{str(input_file)}")
+        raise FileNotFoundError(error)
     final_abs_flag = "false"
     different_k_flag = "false"  # Not yet implemented
     timedata = []
     absdata = []
-    with open(name, 'rU') as data_file:
+    with open(input_file, 'rU') as data_file:
         items = csv.reader(data_file, delimiter='\t')
         for pair in items:
             convert_pair = [float(value) for value in pair]
@@ -84,20 +104,20 @@ def main(the_args=None):
     # Write the data out to a file (for testing purposes). I will probably remove
     # this from the final version
     #
-    outputfilename = str(name[:-4] + "_Analysis.txt")
-    with open(outputfilename, 'a') as outputfile:
-        outputfile.write('Input File: ' + name + '\n')
-        outputfile.write('Output File: ' + outputfilename + '\n')
+    output_filename = get_output_dir() /Path(f'{input_file.stem}_Analysis.txt')
+    with open(output_filename, 'a') as outputfile:
+        outputfile.write(f'Input File: {str(input_file)}\n')
+        outputfile.write(f'Output File: {str(output_filename)}\n')
     #
     if steps < 1:
         steps = 1
     if steps > 10:
         steps = 10
-    with open(outputfilename, 'a') as outputfile:
+    with open(output_filename, 'a') as outputfile:
         outputfile.write('The number of fits selected is: ' + str(steps) +
                          '\n')
     #
-    with open(outputfilename, 'a') as outputfile:
+    with open(output_filename, 'a') as outputfile:
         outputfile.write('The enzyme concentration is: ' + str(enzconc) + '\n')
     #
     # Setting up the arrays to hold the results from the two different fits
@@ -110,10 +130,10 @@ def main(the_args=None):
     starting_abs = np.zeros(steps)
     #
     loop_keys=['abs','deltaAf','enzconc','init_abs','init_abs2',
-          'current_num_data','k','k2','kcat_Km','kcat_Km2',
-          'loopcount','name','pcov','pcov1','substrate','time','vi']
+               'current_num_data','k','k2','kcat_Km','kcat_Km2',
+               'loopcount','name','pcov','pcov1','substrate','time','vi','input_file']
     loop_tuple= namedtuple('loop_tuple', sorted(loop_keys))
-    final_keys=['a','b','kval','name','siga','sigb','x','y']
+    final_keys=['a','b','kval','name','siga','sigb','x','y','input_file']
     final_tuple=namedtuple('final_tuple',sorted(final_keys))
     
     for loopcount in range(steps):
@@ -137,7 +157,7 @@ def main(the_args=None):
             abs[i - startpt_counter] = absdata[i]
             time[i - startpt_counter] = timedata[
                 i]  # I guess it isn't necessary to reset the data to start at time zero?
-        with open(outputfilename, 'a') as outputfile:
+        with open(output_filename, 'a') as outputfile:
             outputfile.write('\n')
             outputfile.write("Fit # " + str(loopcount + 1) + '\n')
             outputfile.write("The current number of data points is: ")
@@ -223,7 +243,7 @@ def main(the_args=None):
         print('kcat/Km = ', kcat_Km[loopcount], ' +/- ',
               kcat_Km[loopcount] * np.sqrt(pcov[2, 2]) / k)
         #
-        with open(outputfilename, 'a') as outputfile:
+        with open(output_filename, 'a') as outputfile:
             outputfile.write('[Relative S] = ' + str(substrate[loopcount]) +
                              '\n')
             outputfile.write("Initial Abs = " + str(init_abs) + ' +/- ' +
@@ -273,7 +293,7 @@ def main(the_args=None):
         print('kcat/Km = ', kcat_Km2[loopcount], ' +/- ',
               kcat_Km2[loopcount] * np.sqrt(pcov[2, 2]) / k2)
         #
-        with open(outputfilename, 'a') as outputfile:
+        with open(output_filename, 'a') as outputfile:
             outputfile.write('\n')
             outputfile.write('[Relative S] = ' + str(substrate[loopcount]) +
                              '\n')
@@ -289,15 +309,14 @@ def main(the_args=None):
                 'kcat/Km = ' + str(kcat_Km2[loopcount]) + ' +/- ' + str(
                     kcat_Km2[loopcount] * np.sqrt(pcov[2, 2]) / k) + '/s/M \n')
         keep_dict={}
+        plot_dir = get_plot_dir()
         current_dict=locals()
         for key_val in loop_keys:
             keep_dict[key_val]=current_dict[key_val]
         plot_data=loop_tuple(**keep_dict)
         plfilenm=make_plots(plot_data)
-        with open(outputfilename, 'a') as outputfile:
-            outputfile.write('Plot saved as ' + plfilenm + '\n')
-        with open(outputfilename, 'a') as outputfile:
-            outputfile.write('\n')
+        with open(output_filename, 'a') as outputfile:
+            outputfile.write(f'Plot saved as {plfilenm}\n\n')
     #
     # AFTER GOING THROUGH AS MANY CYCLES AS DESIRED, WE NOW DROP DOWN TO DO THE EXTRAPOLATION
     # OR JUST DROP OUT IF ONLY ONE CYCLE
@@ -313,7 +332,7 @@ def main(the_args=None):
               " Final abs calcd = ", init_abs2 + deltaAf)
         print("Calcd final abs/observed final abs = ",
               (init_abs2 + deltaAf) / (deltaA_overall + absdata[0]))
-        with open(outputfilename, 'a') as outputfile:
+        with open(output_filename, 'a') as outputfile:
             outputfile.write('\n')
             outputfile.write('Calcd final abs/observed final abs = ' + str(
                 (init_abs2 + deltaAf) / (deltaA_overall + absdata[0])) + '\n')
@@ -322,7 +341,7 @@ def main(the_args=None):
                 "WARNING: the final absorbance calculated differs from the final absorbance observed"
             )
             final_abs_flag = "true"
-            with open(outputfilename, 'a') as outputfile:
+            with open(output_filename, 'a') as outputfile:
                 outputfile.write(
                     'WARNING: the final absorbance calculated differs from the final absorbance observed'
                     + '\n')
@@ -331,7 +350,7 @@ def main(the_args=None):
                 "WARNING: the final absorbance calculated differs from the final absorbance observed"
             )
             final_abs_flag = "true"
-            with open(outputfilename, 'a') as outputfile:
+            with open(output_filename, 'a') as outputfile:
                 outputfile.write(
                     'WARNING: the final absorbance calculated differs from the final absorbance observed'
                     + '\n')
@@ -432,7 +451,7 @@ def main(the_args=None):
             plot_data=final_tuple(**keep_dict)
             filename=final_plot(plot_data)
             print('creating {}'.format(filename))
-            with open(outputfilename, 'a') as outputfile:
+            with open(output_filename, 'a') as outputfile:
                 outputfile.write('\n')
                 if kval == 0:
                     outputfile.write(
@@ -458,6 +477,7 @@ def main(the_args=None):
                 for i in range(loopcount):
                     substrate[i] = 1 - (starting_abs[i] - absdata[0]) / (init_abs2 + deltaAf - absdata[0])
     #
+    print(f'final output written to: {str(output_filename)}')
     print("PROGRAM COMPLETE")
 
 if __name__== "__main__":
